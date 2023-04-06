@@ -2,8 +2,9 @@ import * as puppeteer from "puppeteer";
 
 export const init = async() => {
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     args: ["--start-maximized"],
+    slowMo: 20
   });
 
   const page = await browser.newPage();

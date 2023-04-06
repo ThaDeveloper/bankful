@@ -1,10 +1,12 @@
 import express from "express";
+import { scrapOkra } from "./scrapper";
 
 const app = express();
 const port = process.env.PORT ?? 3001;
 
 app.get("/", async (req, res) => {
-  res.send("Very bankful!");
+  await scrapOkra()
+  res.send("Very bankfudl!");
 });
 
 app.listen(port, () => {

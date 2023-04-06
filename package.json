@@ -16,7 +16,9 @@
     "typescript": "^5.0.3"
   },
   "dependencies": {
+    "dotenv": "^16.0.3",
     "express": "^4.17.1",
+    "jsonfile": "^6.1.0",
     "puppeteer": "^19.8.3"
   }
 }
