@@ -1,5 +1,4 @@
 import * as dotenv from "dotenv";
-import { init } from "./puppeteer";
 import { sleep } from "./helpers";
 import * as jsonfile from "jsonfile";
 import * as fs from "fs";
@@ -15,22 +14,18 @@ const user = {
 const baseDir: string = path.join(__dirname, "../cookies/");
 
 
-export const login = async() => {
-  const { page } = await init();
+export const login = async(page) => {
   await doLogin(page);
-  page.waitForNavigation();
   await setCookies(user.email, page);
 }
 
 export const doLogin = async(page) => {
 
   try {
-  await page.goto("https://bankof.okra.ng", {
+  await page.goto("https://bankof.okra.ng/login", {
     waitUntil: "networkidle0",
   });
 
-  const [loginLink]:any = await page.$x('//a[@href="/login"]');
-  await loginLink.click();
   // login
   await page.type('input[id="email"]', user.email);
   await page.type('input[id="password"]', user.password);
@@ -39,14 +34,13 @@ export const doLogin = async(page) => {
   page.on('dialog', async dialog => {
     await dialog.accept();
 });
-sleep(1000);
 
-await page.waitForSelector('input[id="otp"]', {visible: true, timeout: 2000 });
+await page.waitForSelector('input[id="otp"]', {visible: true });
 await page.type('input[id="otp"]', user.otp);
 await page.click('button[type="submit"]');
+await sleep(3000)
 
-await sleep(2000);
-await page.$x('//a[contains(text(),"View Account")]');
+await page.waitForXPath('//a[contains(text(),"View Account")]');
 
   } catch(e){
     console.log("ERROR:",e);
@@ -55,7 +49,10 @@ await page.$x('//a[contains(text(),"View Account")]');
 
 export const setCookies = async (email: string, page: any): Promise<any> => {
   try {
-    const cookiesObject = await page.cookies();
+    // const cookiesObject = await page.cookies("https://bankof.okra.ng/dashboard")
+    // const cookiesObject = await page.client.send('Network.getAllCookies');
+    const client = await page.target().createCDPSession();
+   const cookiesObject = (await client.send('Network.getAllCookies')).cookies;
     console.log("COOKES",cookiesObject);
     const filePath = `${baseDir}${email}.json`;
     const mkdirp = (dir: string) => {

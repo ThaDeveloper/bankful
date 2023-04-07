@@ -6,7 +6,7 @@ const port = process.env.PORT ?? 3001;
 
 app.get("/", async (req, res) => {
   await scrapOkra()
-  res.send("Very bankfudl!");
+  res.send("Very bankful!");
 });
 
 app.listen(port, () => {
