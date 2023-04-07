@@ -1,8 +1,10 @@
 import { init } from "./puppeteer";
 import { login, getCookies } from "./auth";
 import { sleep } from "./helpers";
+import { formatTxns  } from "./helpers";
+import { Decimal128 } from "mongodb";
 
-export const scrapOkra = async() => {
+export const scrapOkra = async(db) => {
   const { page, browser } = await init();
 
   const isSession = await getCookies(process.env.AUTH_EMAIL, page);
@@ -10,8 +12,9 @@ export const scrapOkra = async() => {
     await login(page);
   }
 
-  // const customer = await getCustomerDetails(page);
-  // const accounts = await getAccounts(page);
+  const customer = await getCustomerDetails(page);
+  const insertedCustomer = await db.collection("ledger_customers").insertOne(customer);
+  await getAccounts(page,db, insertedCustomer.insertedId);
 
 
   await browser.close();
@@ -32,8 +35,13 @@ const getCustomerDetails = async(page) => {
   }, ...profileElements)
   
   name = name.split("Welcome back")[1].replace("!","").trim();
+  const [firstName, lastName] = name.split(" ");
   const customer = {
-    name
+    firstName,
+    lastName,
+    bank: "Okra",
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
   const detailsMapper = {
     0: "address",
@@ -48,14 +56,14 @@ const getCustomerDetails = async(page) => {
   return customer;
 }
 
-const getAccounts = async(page) => {
+const getAccounts = async(page,db, user) => {
   const accountLinks: any = await page.$x('//a[contains(text(),"View Account")]');
   const accounts: {
     accountNo: string;
     accountType: string;
     currency: string;
-    availableBalance: string;
-    ledgerBalance: string;
+    availableBalance: Decimal128;
+    ledgerBalance: Decimal128;
   }[] = [];
 
   for(let i=0; i < accountLinks.length; i++){
@@ -93,12 +101,19 @@ const getAccounts = async(page) => {
       accountNo,
       accountType,
       currency,
-      availableBalance,
-      ledgerBalance
+      availableBalance: new Decimal128(availableBalance),
+      ledgerBalance: new Decimal128(ledgerBalance),
+      user,
+      createdAt: new Date(),
+      updatedAt: new Date()
     }
     accounts.push(account);
 
-    await getTransactions(page);
+    await db.collection("ledger_accounts").dropIndexes()
+    const insertedAccount = await db.collection("ledger_accounts").insertOne(account);
+    const transactions = await getTransactions(page);
+    const formattedTxns = formatTxns(transactions, insertedAccount.insertedId);
+    await db.collection("ledger_transactions").insertMany(formattedTxns);
 
     await page.goBack();
     await sleep(3000);
@@ -113,6 +128,7 @@ const getTransactions = async(page) => {
 
   const txns = await getOnePageTxns(page);
   transactions = transactions.concat(txns);
+
   await page.waitForXPath('//button[contains(text(),"Next")]');
   const [nextButton] = await page.$x('//button[contains(text(),"Next")]');
 
