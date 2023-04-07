@@ -2,8 +2,8 @@ import * as puppeteer from "puppeteer";
 
 export const init = async() => {
   const browser = await puppeteer.launch({
-    headless: false,
-    args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true,
+    args: ["--start-maximized"],
     timeout: 0
   });
 
