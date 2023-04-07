@@ -8,20 +8,22 @@ export const scrapOkra = async(db) => {
   const { page, browser } = await init();
 
   const isSession = await getCookies(process.env.AUTH_EMAIL, page);
+  let authId;
   if (!isSession) {
-    await login(page);
+    authId = await login(page, db);
   }
 
-  const customer = await getCustomerDetails(page);
+  const customer = await getCustomerDetails(page, authId);
   const insertedCustomer = await db.collection("ledger_customers").insertOne(customer);
   await getAccounts(page,db, insertedCustomer.insertedId);
 
-
+  // finnally logut and close
+  await logOut(page);
   await browser.close();
 
 }
 
-const getCustomerDetails = async(page) => {
+const getCustomerDetails = async(page, auth) => {
   const [nameElement]:any = await page.$x('//main/div/h1');
   let name = "";
   if (nameElement) {
@@ -41,7 +43,8 @@ const getCustomerDetails = async(page) => {
     lastName,
     bank: "Okra",
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    auth
   }
   const detailsMapper = {
     0: "address",
@@ -168,3 +171,8 @@ const getOnePageTxns = async (page)=> {
   });
   return result;
 }
+
+const logOut = async(page) => {
+  const [logOutLink] = await page.$x('//a[contains(text(), "Sign out")]');
+  await logOutLink.click();
+};

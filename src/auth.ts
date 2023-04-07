@@ -6,41 +6,43 @@ import * as path from "path";
 
 dotenv.config();
 
-const user = {
-  email: process.env.AUTH_EMAIL,
-  password: process.env.AUTH_PASSWORD,
-  otp: process.env.AUTH_OTP
-};
+
 const baseDir: string = path.join(__dirname, "../cookies/");
 
 
-export const login = async(page) => {
-  await doLogin(page);
-  await setCookies(user.email, page);
+export const login = async(page,db) => {
+  const auth = await doLogin(page, db);
+  await setCookies(auth.email, page);
+  return auth._id;
 }
 
-export const doLogin = async(page) => {
+export const doLogin = async(page, db) => {
 
   try {
-  await page.goto("https://bankof.okra.ng/login", {
-    waitUntil: "networkidle0",
-  });
+    
+    const [auth] = await db.collection("ledger_auths").find({}).toArray();
+    const password = Buffer.from(auth.password, "base64").toString("ascii")
 
-  // login
-  await page.type('input[id="email"]', user.email);
-  await page.type('input[id="password"]', user.password);
-  await page.click('button[type="submit"]');
+    await page.goto("https://bankof.okra.ng/login", {
+      waitUntil: "networkidle0",
+    });
 
-  page.on('dialog', async dialog => {
-    await dialog.accept();
-});
+    // login
+    await page.type('input[id="email"]', auth.email);
+    await page.type('input[id="password"]', password);
+    await page.click('button[type="submit"]');
 
-await page.waitForSelector('input[id="otp"]', {visible: true });
-await page.type('input[id="otp"]', user.otp);
-await page.click('button[type="submit"]');
-await sleep(3000)
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+    });
 
-await page.waitForXPath('//a[contains(text(),"View Account")]');
+    await page.waitForSelector('input[id="otp"]', {visible: true });
+    await page.type('input[id="otp"]', auth.otp);
+    await page.click('button[type="submit"]');
+    await sleep(3000)
+
+    await page.waitForXPath('//a[contains(text(),"View Account")]');
+    return auth;
 
   } catch(e){
     console.log("ERROR:",e);
@@ -49,11 +51,7 @@ await page.waitForXPath('//a[contains(text(),"View Account")]');
 
 export const setCookies = async (email: string, page: any): Promise<any> => {
   try {
-    // const cookiesObject = await page.cookies("https://bankof.okra.ng/dashboard")
-    // const cookiesObject = await page.client.send('Network.getAllCookies');
-    const client = await page.target().createCDPSession();
-   const cookiesObject = (await client.send('Network.getAllCookies')).cookies;
-    console.log("COOKES",cookiesObject);
+    const cookiesObject = await page.cookies("https://bankof.okra.ng/dashboard");
     const filePath = `${baseDir}${email}.json`;
     const mkdirp = (dir: string) => {
       if (fs.existsSync(dir)) {
