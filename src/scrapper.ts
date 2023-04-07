@@ -112,7 +112,6 @@ const getAccounts = async(page,db, user) => {
     }
     accounts.push(account);
 
-    await db.collection("ledger_accounts").dropIndexes()
     const insertedAccount = await db.collection("ledger_accounts").insertOne(account);
     const transactions = await getTransactions(page);
     const formattedTxns = formatTxns(transactions, insertedAccount.insertedId);
@@ -135,7 +134,7 @@ const getTransactions = async(page) => {
   await page.waitForXPath('//button[contains(text(),"Next")]');
   const [nextButton] = await page.$x('//button[contains(text(),"Next")]');
 
-  while(true){
+  for(;;){
     const [maxCurrentElement] = await page.$x('//button[contains(text(),"Next")]/preceding::span[2]');
     const maxCurrent = await page.evaluate(
       (element: any) => element.textContent,
@@ -149,7 +148,7 @@ const getTransactions = async(page) => {
 
     if((await page.$x('//button[contains(text(),"Next")]')).length > 0 && parseInt(maxCurrent) < parseInt(total) ){
       await nextButton.click();
-      await page.waitForXPath('//td[contains(text(),"₦")]');
+      await page.waitForXPath('//tbody/tr/td[@class="px-6 py-4"]');
       const txns = await getOnePageTxns(page);
       transactions = transactions.concat(txns);
     } else {
