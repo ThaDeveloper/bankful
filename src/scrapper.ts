@@ -138,18 +138,17 @@ const getTransactions = async(page) => {
     }
  
   }
-
+  transactions = transactions.filter(transaction => transaction.length > 0);
   return transactions;
 }
 
 const getOnePageTxns = async (page)=> {
   const result = await page.evaluate(() => {
-    const rows = document.querySelectorAll('table tr');
+    const rows = document.querySelectorAll('table tbody tr');
     return Array.from(rows, row => {
-      const columns = row.querySelectorAll('td');
-      return Array.from(columns, column => column.innerText);
+      const columns = row.querySelectorAll('td, th');
+      return Array.from(columns, (column: any) => column.innerText);
     });
   });
-  console.table(result);
   return result;
 }
